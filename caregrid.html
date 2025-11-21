@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareGrid - Healthcare Connected</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        /* Design System */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        body { 
+            font-family: 'Outfit', sans-serif; /* Modern, clean font for UI */
+            background: #f0f2f5;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        
+        h1, h2, h3, .brand-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Animations */
+        .step-content { display: none; }
+        .step-content.active { 
+            display: block; 
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .card-hover {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        /* Loaders */
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .loader-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        /* Bed Counter Pulse */
+        .live-dot {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Loading Screen -->
+    <div id="global-loader" class="loader-overlay">
+        <div class="flex flex-col items-center">
+            <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <p class="text-indigo-900 font-bold text-lg animate-pulse">CareGrid AI Processing...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="glass-panel sticky top-0 z-40 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center group cursor-pointer" onclick="location.reload()">
+                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <i data-lucide="grid" class="h-6 w-6 text-white"></i>
+                </div>
+                <span class="ml-3 text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 brand-font">CareGrid</span>
+            </div>
+            <div class="hidden md:flex items-center space-x-4">
+                <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-wide flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 live-dot"></span> Live Network
+                </span>
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <i data-lucide="bell" class="w-4 h-4 text-indigo-600"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container max-w-3xl mx-auto px-4 py-8 relative z-10">
+        
+        <!-- Progress Bar -->
+        <div class="mb-8 px-2" id="progress-container">
+            <div class="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <span>Start</span>
+                <span>Results</span>
+            </div>
+            <div class="w-full bg-slate-200/50 rounded-full h-3 backdrop-blur-sm overflow-hidden">
+                <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(168,85,247,0.5)]" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Step 1: User Name -->
+        <div id="step-1" class="step-content active glass-panel p-8 rounded-3xl shadow-xl">
+            <div class="text-center mb-8">
+                <div class="inline-block p-4 rounded-full bg-indigo-50 mb-4">
+                    <i data-lucide="sparkles" class="w-8 h-8 text-indigo-600"></i>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 text-slate-900">Welcome to CareGrid</h2>
+                <p class="text-lg text-slate-600">Your intelligent healthcare companion.</p>
+            </div>
+            
+            <div class="space-y-6 max-w-md mx-auto">
+                <div class="relative group">
+                    <input type="text" id="user-name" class="block w-full pl-4 pr-4 py-4 rounded-xl border-2 border-transparent bg-white shadow-sm focus:border-indigo-500 focus:ring-0 text-lg transition-all outline-none group-hover:shadow-md" placeholder="Enter your full name">
+                    <div class="absolute inset-0 rounded-xl border border-slate-200 pointer-events-none"></div>
+                </div>
+                <button onclick="nextStep(1)" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl text-lg font-bold hover:shadow-lg hover:scale-[1.02] transition-all flex justify-center items-center">
+                    Get Started <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Patient Category -->
+        <div id="step-2" class="step-content glass-panel p-8 rounded-3xl shadow-xl">
+            <h2 class="text-3xl font-bold mb-2 text-slate-900">Who needs care?</h2>
+            <p class="mb-8 text-lg text-slate-600">Select the patient category to filter our network.</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- Human Card -->
+                <button onclick="setEmergencyType('human')" class="relative overflow-hidden p-8 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all group text-left h-64 flex flex-col justify-between">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                    <div class="relative z-10">
+                        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-4 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            <i data-lucide="user" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">Human<br>Healthcare</h3>
+                    </div>
+                    <div class="relative z-10 flex items-center text-slate-400 group-hover:text-blue-600 font-medium">
+                        Select <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                    </div>
+                </button>
+
+                <!-- Animal Card -->
+                <button onclick="setEmergencyType('animal')" class="relative overflow-hidden p-8 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all group text-left h-64 flex flex-col justify-between">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                    <div class="relative z-10">
+                        <div class="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                            <i data-lucide="paw-print" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">Veterinary<br>Services</h3>
+                    </div>
+                    <div class="relative z-10 flex items-center text-slate-400 group-hover:text-emerald-600 font-medium">
+                        Select <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                    </div>
+                </button>
+            </div>
+            <button onclick="prevStep(2)" class="mt-8 text-slate-500 hover:text-indigo-600 text-sm font-bold flex items-center"><i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Back</button>
+        </div>
+
+        <!-- Step 3: Location -->
+        <div id="step-3" class="step-content glass-panel p-8 rounded-3xl shadow-xl">
+            <h2 class="text-3xl font-bold mb-2 text-slate-900">Location</h2>
+            <p class="mb-8 text-lg text-slate-600">Find the nearest world-class facilities.</p>
+            
+            <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                <button onclick="detectLocation()" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 font-bold hover:from-blue-100 hover:to-indigo-100 transition-colors flex justify-center items-center border border-blue-100">
+                    <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center mr-3 shadow-sm">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-indigo-600"></i>
+                    </div>
+                    Auto-Detect Location
+                </button>
+            </div>
+            
+            <div class="relative flex py-2 items-center mb-6">
+                <div class="flex-grow border-t border-slate-200"></div>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold tracking-widest uppercase">Or Enter Manually</span>
+                <div class="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-4 top-4 text-slate-400 w-5 h-5"></i>
+                    <input type="text" id="location-input" class="block w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-lg outline-none transition-all" placeholder="Search City or Pincode (e.g. Indiranagar)">
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="prevStep(3)" class="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors">Back</button>
+                    <button onclick="nextStep(3)" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl text-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">Confirm Location</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Specialisation -->
+        <div id="step-4" class="step-content glass-panel p-8 rounded-3xl shadow-xl">
+            <h2 class="text-3xl font-bold mb-2 text-slate-900">Specialization</h2>
+            <p class="mb-8 text-lg text-slate-600">What kind of specialist do you need?</p>
+
+            <div class="space-y-6">
+                <!-- Human Select -->
+                <div id="human-options" class="hidden">
+                    <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Department</label>
+                    <div class="relative">
+                        <select id="human-specialty" class="block w-full pl-4 pr-10 py-4 text-lg rounded-xl border border-slate-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none appearance-none cursor-pointer">
+                            <option value="general">General Medicine</option>
+                            <option value="cardio">Cardiology (Heart Institute)</option>
+                            <option value="ortho">Orthopaedics & Joint Replacement</option>
+                            <option value="paediatrics">Paediatrics & Child Care</option>
+                            <option value="neuro">Neurology & Neurosurgery</option>
+                            <option value="derma">Dermatology & Cosmetology</option>
+                            <option value="gastro">Gastroenterology</option>
+                            <option value="psych">Mental Health & Psychiatry</option>
+                            <option value="obgyn">Obstetrics & Gynaecology</option>
+                            <option value="surgery">General & Laparoscopic Surgery</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
+                            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animal Select -->
+                <div id="animal-options" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Animal Category</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="animal-radio" value="pet" checked class="peer sr-only" onchange="document.getElementById('animal-type').value = this.value">
+                                <div class="p-3 rounded-lg border border-slate-200 text-center peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 hover:bg-slate-50 transition-all">
+                                    <i data-lucide="dog" class="w-5 h-5 mx-auto mb-1"></i>
+                                    <span class="text-xs font-bold">Domestic</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="animal-radio" value="avian" class="peer sr-only" onchange="document.getElementById('animal-type').value = this.value">
+                                <div class="p-3 rounded-lg border border-slate-200 text-center peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 hover:bg-slate-50 transition-all">
+                                    <i data-lucide="feather" class="w-5 h-5 mx-auto mb-1"></i>
+                                    <span class="text-xs font-bold">Avian</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="animal-radio" value="wild" class="peer sr-only" onchange="document.getElementById('animal-type').value = this.value">
+                                <div class="p-3 rounded-lg border border-slate-200 text-center peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 hover:bg-slate-50 transition-all">
+                                    <i data-lucide="tree-pine" class="w-5 h-5 mx-auto mb-1"></i>
+                                    <span class="text-xs font-bold">Exotic</span>
+                                </div>
+                            </label>
+                        </div>
+                        <input type="hidden" id="animal-type" value="pet">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Specialty</label>
+                        <div class="relative">
+                            <select id="vet-specialty" class="block w-full pl-4 pr-10 py-4 text-lg rounded-xl border border-slate-200 bg-white shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none appearance-none cursor-pointer">
+                                <option value="general">General Checkup</option>
+                                <option value="internal">Internal Medicine</option>
+                                <option value="surgery">Surgery & Trauma</option>
+                                <option value="cardio">Cardiology</option>
+                                <option value="derma">Dermatology</option>
+                                <option value="oncology">Oncology</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-emerald-600">
+                                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Symptoms / Notes</label>
+                    <textarea id="symptoms" rows="3" class="block w-full p-4 rounded-xl border border-slate-200 bg-white shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-base outline-none resize-none" placeholder="Briefly describe the condition (e.g., High fever, Fracture...)"></textarea>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button onclick="prevStep(4)" class="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors">Back</button>
+                    <button onclick="generateResults()" class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl text-lg font-bold hover:shadow-lg hover:scale-[1.02] transition-all flex justify-center items-center">
+                        <i data-lucide="search" class="w-5 h-5 mr-2"></i> Find CareGrid
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Results -->
+        <div id="step-5" class="step-content">
+            <div class="bg-indigo-900 text-white rounded-3xl p-8 mb-8 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -mr-16 -mt-16"></div>
+                <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -ml-16 -mb-16"></div>
+                
+                <div class="relative z-10 flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-bold mb-2">Top Recommendations</h2>
+                        <p class="text-indigo-200 text-lg" id="result-header-text">Curated list for your needs</p>
+                    </div>
+                    <div class="hidden md:block">
+                         <span class="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium border border-white/30">
+                             Verified Facilities
+                         </span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results-list" class="space-y-8">
+                <!-- Results injected via JS -->
+            </div>
+
+            <!-- Services Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+                <!-- Home Visit -->
+                <div class="glass-panel p-6 rounded-3xl shadow-lg border-l-4 border-purple-500 relative overflow-hidden group">
+                    <div class="relative z-10">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 text-purple-600">
+                            <i data-lucide="home" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 mb-2">Home Consultation</h3>
+                        <p class="text-slate-600 mb-4 text-sm">Expert doctors and vets available for home visits in your area.</p>
+                        <button onclick="bookHomeVisit()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition-colors w-full">Check Availability</button>
+                    </div>
+                </div>
+
+                <!-- Ambulance -->
+                <div class="bg-gradient-to-br from-red-500 to-orange-600 text-white p-6 rounded-3xl shadow-lg shadow-red-200 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 opacity-10 transform translate-x-8 -translate-y-8">
+                        <i data-lucide="ambulance" class="w-40 h-40"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm animate-pulse">
+                                <i data-lucide="siren" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <span class="ml-3 font-bold uppercase tracking-widest text-xs bg-white/20 px-2 py-1 rounded">Emergency</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">Need an Ambulance?</h3>
+                        <p class="text-red-100 mb-4 text-sm">ALS/BLS Ambulances with oxygen support available within 10 mins.</p>
+                        <button onclick="requestAmbulance()" class="px-4 py-2 bg-white text-red-600 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors w-full flex items-center justify-center">
+                            <i data-lucide="phone-call" class="w-4 h-4 mr-2"></i> Call 108 Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-12 text-center pb-8">
+                 <button onclick="location.reload()" class="text-slate-400 hover:text-indigo-600 text-sm font-bold flex items-center justify-center mx-auto transition-colors">
+                     <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> Start New Search
+                 </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    
+    <!-- Ambulance Modal -->
+    <div id="ambulance-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="if(event.target === this) closeModal('ambulance-modal')">
+        <div class="bg-white rounded-3xl max-w-md w-full mx-4 overflow-hidden shadow-2xl transform scale-90 transition-transform duration-300">
+            <div class="bg-red-600 p-6 text-center">
+                <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                    <i data-lucide="ambulance" class="w-10 h-10 text-white"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">Dispatching...</h3>
+            </div>
+            <div class="p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="text-left">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Location</p>
+                        <p class="text-lg font-bold text-slate-800" id="modal-city">Bengaluru</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-bold text-slate-400 uppercase">ETA</p>
+                        <p class="text-lg font-bold text-green-600">08 Mins</p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <p class="text-sm font-medium text-slate-600">Connecting to Control Room</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <p class="text-sm font-medium text-slate-600">Driver Assigned: KA-05-EQ-1088</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('ambulance-modal')" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-colors">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Visit Modal -->
+    <div id="home-visit-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="if(event.target === this) closeModal('home-visit-modal')">
+        <div class="bg-white rounded-3xl max-w-md w-full mx-4 overflow-hidden shadow-2xl transform scale-90 transition-transform duration-300">
+            <div class="p-8 text-center">
+                <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-600">
+                    <i data-lucide="calendar-check" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-900 mb-2">Request Received</h3>
+                <p class="text-slate-600 mb-6">We have alerted certified professionals in your vicinity.</p>
+                
+                <div class="bg-purple-50 rounded-xl p-4 mb-6 text-left">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm text-slate-500">Service</span>
+                        <span class="text-sm font-bold text-slate-800">Home Visit</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-slate-500">Est. Charge</span>
+                        <span class="text-sm font-bold text-slate-800">₹600 - ₹900</span>
+                    </div>
+                </div>
+
+                <button onclick="closeModal('home-visit-modal')" class="w-full bg-purple-600 text-white py-4 rounded-xl font-bold hover:bg-purple-700 transition-colors">Okay, Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            name: '',
+            type: '', // 'human' or 'animal'
+            location: '',
+            animalType: '',
+            specialty: '',
+            symptoms: ''
+        };
+
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Logic
+        function nextStep(current) {
+            if (current === 1) {
+                const nameInput = document.getElementById('user-name').value;
+                if (!nameInput.trim()) return shakeInput('user-name');
+                state.name = nameInput;
+            }
+            if (current === 3) {
+                const locInput = document.getElementById('location-input').value;
+                if (!locInput.trim() && !state.location) return shakeInput('location-input');
+                if (locInput) state.location = locInput;
+            }
+
+            // Transition
+            const currentEl = document.getElementById(`step-${current}`);
+            currentEl.style.opacity = '0';
+            currentEl.style.transform = 'translateY(-20px)';
+            
+            setTimeout(() => {
+                currentEl.classList.remove('active');
+                currentEl.style.opacity = '';
+                currentEl.style.transform = '';
+                
+                const next = current + 1;
+                document.getElementById(`step-${next}`).classList.add('active');
+                updateProgress(next);
+
+                // Prepare Step 4
+                if (next === 4) {
+                    if (state.type === 'human') {
+                        document.getElementById('human-options').classList.remove('hidden');
+                        document.getElementById('animal-options').classList.add('hidden');
+                    } else {
+                        document.getElementById('human-options').classList.add('hidden');
+                        document.getElementById('animal-options').classList.remove('hidden');
+                    }
+                }
+            }, 300);
+        }
+
+        function prevStep(current) {
+            const currentEl = document.getElementById(`step-${current}`);
+            currentEl.classList.remove('active');
+            
+            const prev = current - 1;
+            document.getElementById(`step-${prev}`).classList.add('active');
+            updateProgress(prev);
+        }
+
+        function updateProgress(step) {
+            const progress = ((step - 1) / 4) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        function setEmergencyType(type) {
+            state.type = type;
+            nextStep(2);
+        }
+
+        function shakeInput(id) {
+            const el = document.getElementById(id);
+            el.classList.add('ring-2', 'ring-red-500', 'animate-pulse');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-red-500', 'animate-pulse'), 500);
+        }
+
+        function detectLocation() {
+            const btn = document.querySelector('button[onclick="detectLocation()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin w-5 h-5 mr-2"></i> Locating...';
+            
+            // Simulating delay
+            setTimeout(() => {
+                state.location = `Indiranagar, Bengaluru`; 
+                document.getElementById('location-input').value = state.location;
+                btn.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-600"></i> Location Set';
+                btn.classList.remove('bg-gradient-to-r', 'from-blue-50', 'to-indigo-50');
+                btn.classList.add('bg-green-50', 'border-green-200', 'text-green-700');
+                lucide.createIcons();
+            }, 1500);
+        }
+
+        // Mock Data with Images
+        const facilities = [
+            // Human
+            { 
+                id: 1, 
+                type: 'human', 
+                name: 'Apollo Speciality Hospital', 
+                image: 'https://images.unsplash.com/photo-1587351021759-3e566b9c44aa?auto=format&fit=crop&q=80&w=800',
+                specialty: ['general', 'cardio', 'surgery', 'ortho'], 
+                address: '154/11, Bannerghatta Road, Bengaluru', 
+                distance: '1.2 km', 
+                bedCount: 14, 
+                insurance: ['Star Health', 'HDFC Ergo', 'CGHS'],
+                rating: 4.8
+            },
+            { 
+                id: 2, 
+                type: 'human', 
+                name: 'Rainbow Children\'s Hospital', 
+                image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800',
+                specialty: ['paediatrics', 'general'], 
+                address: 'Marathahalli, Bengaluru', 
+                distance: '3.5 km', 
+                bedCount: 5, 
+                insurance: ['ICICI Lombard', 'Religare'],
+                rating: 4.6
+            },
+            { 
+                id: 3, 
+                type: 'human', 
+                name: 'NIMHANS Institute', 
+                image: 'https://images.unsplash.com/photo-1516549655169-df83a092dd14?auto=format&fit=crop&q=80&w=800',
+                specialty: ['neuro', 'psych'], 
+                address: 'Hosur Road, Bengaluru', 
+                distance: '5.0 km', 
+                bedCount: 0, 
+                insurance: ['Govt Schemes', 'Ayushman Bharat'],
+                rating: 4.9
+            },
+            { 
+                id: 4, 
+                type: 'human', 
+                name: 'Manipal Clinic', 
+                image: 'https://images.unsplash.com/photo-1519494080410-f9aa00caa294?auto=format&fit=crop&q=80&w=800',
+                specialty: ['general', 'derma', 'gastro'], 
+                address: 'Indiranagar 100ft Rd', 
+                distance: '0.8 km', 
+                bedCount: 22, 
+                insurance: ['Max Bupa', 'Acko'],
+                rating: 4.5
+            },
+            
+            // Animal
+            { 
+                id: 5, 
+                type: 'animal', 
+                name: 'CESSNA Lifeline Veterinary', 
+                image: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=800',
+                animalType: ['pet'], 
+                specialty: ['general', 'surgery', 'derma'], 
+                address: 'Domlur, Bengaluru', 
+                distance: '2.1 km', 
+                bedCount: 8, 
+                insurance: ['PetSure'],
+                rating: 4.7
+            },
+            { 
+                id: 6, 
+                type: 'animal', 
+                name: 'Bannerghatta Rescue', 
+                image: 'https://images.unsplash.com/photo-1535083793161-9347212b41f9?auto=format&fit=crop&q=80&w=800',
+                animalType: ['avian', 'wild'], 
+                specialty: ['general', 'internal', 'surgery'], 
+                address: 'Bannerghatta National Park', 
+                distance: '18.4 km', 
+                bedCount: 12, 
+                insurance: ['Govt Supported'],
+                rating: 4.9
+            },
+            { 
+                id: 7, 
+                type: 'animal', 
+                name: 'Turf Club Equine', 
+                image: 'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&q=80&w=800',
+                animalType: ['equine', 'bovine'], 
+                specialty: ['surgery', 'ortho', 'general'], 
+                address: 'Race Course Rd', 
+                distance: '6.2 km', 
+                bedCount: 4, 
+                insurance: ['Equine Cover'],
+                rating: 4.6
+            },
+            { 
+                id: 8, 
+                type: 'animal', 
+                name: 'Precise Pet Clinic', 
+                image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
+                animalType: ['pet'], 
+                specialty: ['general', 'cardio'], 
+                address: 'Koramangala 4th Block', 
+                distance: '1.0 km', 
+                bedCount: 3, 
+                insurance: ['Digit Insurance'],
+                rating: 4.4
+            }
+        ];
+
+        function generateResults() {
+            // Show Loader
+            const loader = document.getElementById('global-loader');
+            loader.classList.add('show');
+
+            // Collect Data
+            state.symptoms = document.getElementById('symptoms').value;
+            if (state.type === 'human') {
+                state.specialty = document.getElementById('human-specialty').value;
+            } else {
+                state.animalType = document.getElementById('animal-type').value;
+                state.specialty = document.getElementById('vet-specialty').value;
+            }
+
+            setTimeout(() => {
+                loader.classList.remove('show');
+                renderFacilities();
+                nextStep(4);
+            }, 1500);
+        }
+
+        function renderFacilities() {
+            const filtered = facilities.filter(fac => {
+                if (fac.type !== state.type) return false;
+                if (state.type === 'human') {
+                    return fac.specialty.includes(state.specialty) || fac.specialty.includes('general');
+                } else {
+                    const typeMatch = fac.animalType.includes(state.animalType);
+                    const specMatch = fac.specialty.includes(state.specialty) || fac.specialty.includes('general');
+                    return typeMatch && specMatch;
+                }
+            });
+
+            const container = document.getElementById('results-list');
+            container.innerHTML = '';
+            
+            document.getElementById('result-header-text').innerText = `Found ${filtered.length} facilities near ${state.location || 'Bengaluru'}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-white rounded-3xl shadow-sm">No specific matches found. Try a different specialty.</div>`;
+            } else {
+                filtered.forEach(fac => {
+                    const badges = fac.specialty.slice(0,3).map(s => `<span class="px-2 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-600 mr-1 capitalize">${s}</span>`).join('');
+                    
+                    let bedClass = fac.bedCount > 5 ? 'bg-green-100 text-green-700' : (fac.bedCount > 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700');
+                    let bedText = fac.bedCount > 0 ? `${fac.bedCount} Beds` : 'Full';
+
+                    const card = document.createElement('div');
+                    card.className = 'glass-panel rounded-3xl overflow-hidden shadow-lg card-hover flex flex-col md:flex-row';
+                    card.innerHTML = `
+                        <div class="md:w-48 h-48 md:h-auto relative">
+                            <img src="${fac.image}" class="w-full h-full object-cover" alt="${fac.name}">
+                            <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold flex items-center shadow-sm">
+                                <i data-lucide="star" class="w-3 h-3 text-yellow-400 mr-1 fill-current"></i> ${fac.rating}
+                            </div>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="text-xl font-bold text-slate-900 leading-tight">${fac.name}</h3>
+                                    <span class="${bedClass} px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ml-2 flex items-center">
+                                        <span class="w-2 h-2 rounded-full bg-current mr-1 animate-pulse"></span> ${bedText}
+                                    </span>
+                                </div>
+                                <p class="text-slate-500 text-sm mt-1 flex items-center"><i data-lucide="map-pin" class="w-3 h-3 mr-1"></i> ${fac.address}</p>
+                                <div class="mt-4 flex flex-wrap gap-y-2">
+                                    ${badges}
+                                </div>
+                            </div>
+                            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-bold uppercase">Insurance</p>
+                                    <p class="text-xs text-slate-600 font-medium truncate max-w-[150px]">${fac.insurance.join(', ')}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fac.name + ' ' + fac.address)}')" class="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-colors">
+                                        <i data-lucide="navigation" class="w-5 h-5"></i>
+                                    </button>
+                                    <button class="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-200">
+                                        Book Now
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+            lucide.createIcons();
+        }
+
+        // Modal Controls
+        function requestAmbulance() {
+            document.getElementById('modal-city').innerText = state.location || 'Bengaluru';
+            showModal('ambulance-modal');
+        }
+
+        function bookHomeVisit() {
+            showModal('home-visit-modal');
+        }
+
+        function showModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            // Trigger reflow
+            void el.offsetWidth; 
+            el.style.opacity = '1';
+            el.querySelector('div').style.transform = 'scale(1)';
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.style.opacity = '0';
+            el.querySelector('div').style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                el.classList.add('hidden');
+            }, 300);
+        }
+    </script>
+</body>
+</html>
